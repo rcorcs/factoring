@@ -1,0 +1,62 @@
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#include <gmp.h>
+#include <mpi.h>
+
+void random_number(mpz_t n, int numlen);
+
+int main(int argc, char** argv) {
+    int rank, nprocs;
+    int tag = 1234;
+    MPI_Status status;
+    mpz_t n;
+    char *n_str;
+    int nlen;
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    
+    mpz_init(n);
+
+    //int MPI_Send(void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
+    //int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Status *status)
+    if(rank==0){
+        nlen = 30;
+        n_str = (char*)malloc(nlen+1);
+        MPI_Send(&nlen, 1, MPI_INT, 1, tag, MPI_COMM_WORLD);
+        MPI_Recv(n_str, (nlen+1), MPI_CHAR, 1, tag, MPI_COMM_WORLD, &status);
+        
+        mpz_set_str(n, n_str, 10);
+        gmp_printf("Number: %Zd\n", n);
+    }else {
+        MPI_Recv(&nlen, 1, MPI_INT, 1, tag, MPI_COMM_WORLD, &status);
+
+        random_number(n, nlen);
+        n_str = mpz_get_str(NULL, 10, n);
+
+        MPI_Send(n_str, (nlen+1), MPI_CHAR, 1, tag, MPI_COMM_WORLD);
+    }
+    
+    MPI_Finalize();
+    return 0;
+}
+
+
+void random_number(mpz_t n, int numlen)
+{
+    char numstr[numlen+1];
+    int i;
+
+    srand( time(NULL) );
+
+    for(i=0; i<numlen; i++) {
+        numstr[i] = '0'+(rand()%10);
+    }
+    numstr[numlen] = 0;
+
+    mpz_set_str(n, numstr, 10);
+}
